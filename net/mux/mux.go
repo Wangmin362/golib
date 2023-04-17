@@ -31,6 +31,7 @@ const (
 	DefaultTimeout = 10 * time.Second
 )
 
+// Mux 目的是为了复用端口 TODO 分析具体原理
 type Mux struct {
 	ln net.Listener
 
