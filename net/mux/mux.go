@@ -158,6 +158,7 @@ func (mux *Mux) Serve() error {
 		}
 		tempDelay = 0
 
+		// 每接收到一个请求，就启动一个协程进行处理，Mux需要根据流量特征把数据转发给合适的Listener
 		go mux.handleConn(conn)
 	}
 }
@@ -175,6 +176,7 @@ func (mux *Mux) handleConn(conn net.Conn) {
 		}
 	}
 
+	// TODO 什么叫做共享连接？
 	sharedConn, rd := gnet.NewSharedConnSize(conn, int(maxNeedBytesNum))
 	data := make([]byte, maxNeedBytesNum)
 

@@ -39,6 +39,7 @@ func NewSharedConnSize(conn net.Conn, bufSize int) (*SharedConn, io.Reader) {
 		Conn: conn,
 		buf:  bytes.NewBuffer(make([]byte, 0, bufSize)),
 	}
+	// TeeReader读取conn的前面几个字节，并把读取到的数据写入到sc.buf当中
 	return sc, io.TeeReader(conn, sc.buf)
 }
 
