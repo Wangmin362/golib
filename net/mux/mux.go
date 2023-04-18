@@ -38,6 +38,8 @@ type Mux struct {
 	defaultLn *listener
 
 	// sorted by priority
+	// 根据数据的特征，把流量导入到不同的listener当中，不同的listener可能特征是相同的，因此必须进行优先级排序
+	// 在满足某个特征的情况下，优先级高的listener会被优先选择
 	lns             []*listener
 	maxNeedBytesNum uint32
 	keepAlive       time.Duration
