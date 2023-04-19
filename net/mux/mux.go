@@ -33,14 +33,19 @@ const (
 
 // Mux 目的是为了复用端口 TODO 分析具体原理
 type Mux struct {
+	// 用于监听frps配置的BindAddr:BindPort，其实就是frpc需要注册的地址
 	ln net.Listener
 
+	// TODO 默认Listener是谁？
 	defaultLn *listener
 
 	// sorted by priority
 	// 根据数据的特征，把流量导入到不同的listener当中，不同的listener可能特征是相同的，因此必须进行优先级排序
-	// 在满足某个特征的情况下，优先级高的listener会被优先选择
-	lns             []*listener
+	// 在满足某个特征的情况下，优先级低的listener会被优先选择
+	// listener的优先级按照从小打大排序，priority小的的listener会优先选择
+	lns []*listener
+	// 最多需要取出多少个字节，根据Mux的原理，由于不同协议的流量需要取出的字节数不同，为了能够正确匹配合适的listener,
+	// 这里要取出的字节数至少是所有listener中需要的最大字节数
 	maxNeedBytesNum uint32
 	keepAlive       time.Duration
 
@@ -80,6 +85,7 @@ func (mux *Mux) Listen(priority int, needBytesNum uint32, fn MatchFunc) net.List
 		if newlns[i].priority == newlns[j].priority {
 			return newlns[i].needBytesNum < newlns[j].needBytesNum
 		}
+		// 优先级按照从小到大进行排序
 		return newlns[i].priority < newlns[j].priority
 	})
 	mux.lns = newlns
@@ -139,6 +145,7 @@ func (mux *Mux) Serve() error {
 		// Wait for the next connection.
 		// If it returns a temporary error then simply retry.
 		// If it returns any other error then exit immediately.
+		// 开始监听frps配置的BindAddr:BindPort地址，等待frpc注册上来
 		conn, err := mux.ln.Accept()
 		if err, ok := err.(interface {
 			Temporary() bool
@@ -167,7 +174,9 @@ func (mux *Mux) Serve() error {
 
 func (mux *Mux) handleConn(conn net.Conn) {
 	mux.mu.RLock()
+	// 拿到需要从连接中取出的最大字节数
 	maxNeedBytesNum := mux.maxNeedBytesNum
+	// 拿到后端listener,一会儿需要把流量具体代理到这其中的一个listener
 	lns := mux.lns
 	defaultLn := mux.defaultLn
 	mux.mu.RUnlock()
@@ -183,6 +192,7 @@ func (mux *Mux) handleConn(conn net.Conn) {
 	data := make([]byte, maxNeedBytesNum)
 
 	conn.SetReadDeadline(time.Now().Add(DefaultTimeout))
+	// 从连接当中取出需要的字节数量放到rd当中
 	_, err := io.ReadFull(rd, data)
 	if err != nil {
 		conn.Close()
@@ -191,6 +201,7 @@ func (mux *Mux) handleConn(conn net.Conn) {
 	conn.SetReadDeadline(time.Time{})
 
 	for _, ln := range lns {
+		// 匹配一个合适的listener，然后把连接转发过去
 		if match := ln.matchFn(data); match {
 			err = errors.PanicToError(func() {
 				ln.c <- sharedConn

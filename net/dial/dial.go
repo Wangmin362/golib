@@ -61,6 +61,7 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 		dstAddr = op.proxyAddr
 	}
 
+	// 连接到frps
 	if op.dialer != nil {
 		c, err = op.dialer(ctx, dstAddr)
 	} else {
@@ -71,11 +72,13 @@ func DialContext(ctx context.Context, addr string, opts ...DialOption) (c net.Co
 	}
 
 	// call after dial hooks
+	// 优先级数字越小，这个回调函数越后被调用
 	sort.SliceStable(op.afterHooks, func(i, j int) bool {
 		return op.afterHooks[i].Priority < op.afterHooks[j].Priority
 	})
 
 	lastSuccConn := c
+	// 执行后置回调函数
 	for _, v := range op.afterHooks {
 		ctx, c, err = v.Hook(ctx, c, addr)
 		if err != nil {

@@ -63,10 +63,13 @@ func GetDialMetasFromContext(ctx context.Context) DialMetas {
 type dialOptions struct {
 	proxyType string
 	proxyAddr string
+	// tcp,kcp,quic,websocket
 	protocol  string
 	tlsConfig *tls.Config
-	laddr     string // only use ip, port is random
-	timeout   time.Duration
+	// frpc local addr
+	laddr   string // only use ip, port is random
+	timeout time.Duration
+	// TODO 啥作用？
 	keepAlive time.Duration
 
 	dialer func(ctx context.Context, addr string) (c net.Conn, err error)
